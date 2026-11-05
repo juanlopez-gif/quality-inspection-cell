@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quality Inspection Cell</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">QC</div>
+    <div>
+      <h1>Quality Inspection Cell</h1>
+      <div class="sub">ROS 2 Jazzy · simulated cell · supervisor + command/status topics</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="kpi"><span id="kpi-state" class="badge">—</span><label>Cell state</label></div>
+    <div class="kpi"><b id="kpi-belt">0</b><label>On belt</label></div>
+    <div class="kpi"><b id="kpi-done">0</b><label>Processed</label></div>
+    <div class="kpi"><b id="kpi-rej">0</b><label>Rejected</label></div>
+    <div class="conn" id="conn"><span class="dot"></span><span id="conn-text">connecting…</span></div>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="cell" class="active">Cell view</button>
+  <button data-tab="arch">Architecture (rqt_graph)</button>
+  <button data-tab="rules">Supervisor rules & state machines</button>
+  <button data-tab="log">Event log</button>
+  <button data-tab="topics">Topics & messages</button>
+</nav>
+
+<main>
+<!-- ======================================================== CELL VIEW -->
+<section id="tab-cell" class="tab active">
+  <div class="cell-grid">
+    <div class="panel canvas-panel">
+      <div class="panel-title">Top view of the cell <span class="hint">CELL frame · mm · belt moves → +X</span></div>
+      <div class="canvas-wrap"><canvas id="cell-canvas"></canvas></div>
+      <div class="robot-strip" id="robot-strip"></div>
+      <div class="cam-box" id="cam-box">
+        <div class="panel-title">What the camera sees <span class="hint">/camera/debug_image · OpenCV pipeline: contours, class, size, pick ROI</span></div>
+        <img id="cam-img" alt="camera image">
+        <div class="hint" id="cam-note"></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <div class="panel-title">Operator · place a piece on the belt</div>
+        <div class="form">
+          <div class="row"><label>Shape</label>
+            <div class="seg" id="f-shape">
+              <button data-v="CIRCLE" class="on">● Circle</button>
+              <button data-v="SQUARE">■ Square</button>
+            </div>
+          </div>
+          <div class="row"><label>Color</label>
+            <div class="swatches" id="f-color"></div>
+          </div>
+          <div class="row"><label>Size <b id="f-size-v">42.0</b> mm</label>
+            <input type="range" id="f-size" min="30" max="55" step="0.5" value="42">
+            <div class="range-note">nominal 42 ± 2 mm</div>
+          </div>
+          <div class="row"><label>Surface mark</label>
+            <div class="seg wrap" id="f-mark">
+              <button data-v="NONE" class="on">None</button>
+              <button data-v="CROSS">✕ Cross</button>
+              <button data-v="SMILEY">☺ Smiley</button>
+              <button data-v="SCRATCH">〰 Scratch</button>
+              <button data-v="DOT">• Dot</button>
+              <button data-v="GROOVE">— Groove</button>
+            </div>
+          </div>
+          <div class="row two">
+            <div><label>Lateral offset <b id="f-y-v">0</b> mm</label>
+              <input type="range" id="f-y" min="-30" max="30" step="1" value="0"></div>
+            <div><label>Rotation <b id="f-yaw-v">0</b>°</label>
+              <input type="range" id="f-yaw" min="0" max="90" step="1" value="0"></div>
+          </div>
+          <button class="primary" id="btn-spawn">Place on belt</button>
+          <div class="quick">
+            <button id="btn-good">+ Random good</button>
+            <button id="btn-bad">+ Random defective</button>
+            <button id="btn-batch">+ Batch of 6 (mixed)</button>
+            <button id="btn-reset" class="danger">Reset world</button>
+          </div>
+          <div class="queue" id="queue-info"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Device status (from /…/status topics)</div>
+        <div class="cards" id="cards"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Last final inspection <span class="hint">/camera/inspection_result</span></div>
+        <div id="last-insp" class="insp empty">No inspection yet.</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Latest events <span class="hint">status → rule → command</span></div>
+    <div id="mini-log" class="log mini"></div>
+  </div>
+</section>
+
+<!-- ======================================================== ARCHITECTURE -->
+<section id="tab-arch" class="tab">
+  <div class="panel">
+    <div class="panel-title">Live ROS 2 graph
+      <span class="hint">built from the running system (node & topic introspection, like rqt_graph) · click a node or topic</span>
+    </div>
+    <div class="arch-toolbar">
+      <label><input type="checkbox" id="t-sim"> Show simulation-only nodes</label>
+      <label><input type="checkbox" id="t-mon"> Show dashboard (monitor) links</label>
+      <label><input type="checkbox" id="t-anim" checked> Animate message flow</label>
+      <div class="legend">
+        <span><i class="lg status"></i>status (device → supervisor)</span>
+        <span><i class="lg command"></i>command (supervisor → device)</span>
+        <span><i class="lg sim"></i>simulation only</span>
+        <span><i class="lg missing"></i>expected but not found</span>
+      </div>
+    </div>
+    <div class="arch-wrap">
+      <svg id="arch-svg" viewBox="120 0 1220 935" preserveAspectRatio="xMidYMid meet"></svg>
+      <div id="arch-info" class="arch-info">
+        <h3>How to read this graph</h3>
+        <p><b>Rectangles</b> are ROS 2 nodes, <b>pills</b> are topics.
+          The <b>supervisor</b> is the only node that sends commands. Devices only
+          execute commands and report status. The <b>IR sensor has no command topic</b>:
+          it is purely reactive.</p>
+        <p>Click any node or topic for details.</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Topic contract check <span class="hint">expected publishers/subscribers vs. what is really running</span></div>
+    <table class="tbl" id="contract-tbl"></table>
+  </div>
+</section>
+
+<!-- ======================================================== RULES -->
+<section id="tab-rules" class="tab">
+  <div class="rules-grid">
+    <div class="panel">
+      <div class="panel-title">Decision cycle of the supervisor</div>
+      <div class="cycle">
+        <div class="step s1">A device publishes a <b>STATUS</b></div><div class="arr">→</div>
+        <div class="step s2">Supervisor updates its <b>view of the cell</b></div><div class="arr">→</div>
+        <div class="step s3">Evaluates the <b>rules in order</b> (safety first)</div><div class="arr">→</div>
+        <div class="step s4">Publishes <b>COMMANDS</b> (only if something must change)</div>
+      </div>
+      <p class="note">Rules are also evaluated by a 10 Hz timer so time-based rules (sensor timeout,
+        inspection timeout) work even when nothing is published. Source:
+        <code>quality_cell/core/supervisor_rules.py</code></p>
+      <table class="tbl" id="rules-tbl"></table>
+    </div>
+    <div class="panel">
+      <div class="panel-title">State machines (live)</div>
+      <div id="sm"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== LOG -->
+<section id="tab-log" class="tab">
+  <div class="panel">
+    <div class="panel-title">Event log
+      <span class="hint">commands are always logged, statuses only when they change</span></div>
+    <div class="arch-toolbar">
+      <label><input type="checkbox" class="lf" value="command" checked> Commands</label>
+      <label><input type="checkbox" class="lf" value="status" checked> Status changes</label>
+      <label><input type="checkbox" class="lf" value="result" checked> Inspection results</label>
+      <label><input type="checkbox" class="lf" value="sim" checked> Simulation</label>
+      <button id="btn-pause">Pause</button>
+      <button id="btn-clear">Clear view</button>
+    </div>
+    <div id="full-log" class="log full"></div>
+  </div>
+</section>
+
+<!-- ======================================================== TOPICS -->
+<section id="tab-topics" class="tab">
+  <div class="topics-grid">
+    <div class="panel">
+      <div class="panel-title">Topics</div>
+      <table class="tbl click" id="topics-tbl"></table>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Last message <span class="hint" id="msg-topic">select a topic</span></div>
+      <pre id="msg-view" class="msg">—</pre>
+    </div>
+  </div>
+</section>
+</main>
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

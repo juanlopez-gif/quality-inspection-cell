@@ -1,0 +1,18 @@
+# colcon build products (rebuild with ./build.sh)
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Cell-specific calibration made with tools/calibrate_camera.py (each lab makes its own)
+camera_calibration.yaml
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store

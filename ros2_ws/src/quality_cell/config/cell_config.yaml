@@ -1,0 +1,155 @@
+# =============================================================================
+#  QUALITY INSPECTION CELL - shared cell configuration
+# =============================================================================
+#  Every node loads THIS file (parameter `cell_config_file`, defaults to the
+#  installed copy in share/quality_cell/config/). Change values here, rebuild
+#  (or use --symlink-install) and relaunch.
+#
+#  UNITS: millimetres, seconds, degrees.
+#
+#  CELL FRAME (top view):
+#     origin = start of the belt, on its centre line, on the belt surface
+#     +X     = direction of belt travel (towards the IR sensor)
+#     +Y     = to the left when looking along +X (towards the robot)
+#     +Z     = up
+#
+#               +Y
+#                ^        [ 9 bins ]
+#                |          (robot)
+#                |
+#   spawn -> =========== belt ==========[IR]==|  -> +X
+# =============================================================================
+
+conveyor:
+  length_mm: 900.0          # Belt length along X
+  width_mm: 120.0           # Belt width along Y
+  speed_mm_s: 80.0          # Belt speed when RUNNING
+  spawn_x_mm: 60.0          # Where the operator drops new pieces
+  status_rate_hz: 10.0
+
+ir_sensor:
+  x_mm: 780.0               # Position of the IR beam (crosses the whole belt along Y)
+  rate_hz: 20.0             # Periodic report rate (it ALSO reports instantly on change)
+
+camera:
+  # Overhead camera that sees the whole belt (transport zone + pick zone)
+  fov: {x_min: 0.0, x_max: 900.0, y_min: -60.0, y_max: 60.0}
+  # Region Of Interest used for the FINAL inspection (around the IR sensor)
+  pick_roi: {x_min: 700.0, x_max: 860.0, y_min: -60.0, y_max: 60.0}
+  detection_rate_hz: 10.0
+  inspection_time_s: 0.6    # Simulated processing time of the final inspection
+  # --- Simulated sensor noise (set to 0 for a perfect camera) ---
+  size_noise_std_mm: 0.25
+  position_noise_std_mm: 0.8
+  yaw_noise_std_deg: 1.0
+  color_noise_std: 6.0      # RGB units
+  mark_detection_probability: 1.0
+  # ---------------- perception backend ----------------
+  #  sim    : uses the simulator ground truth + noise (fast, no images)
+  #  opencv : REAL vision pipeline (quality_cell/core/vision.py) on camera images
+  backend: opencv
+  #  source (only for opencv):
+  #    sim_render      -> images rendered from the simulator (test the real pipeline without a camera)
+  #    0, 1, ...       -> /dev/video<N> (USB camera)
+  #    /dev/video2, rtsp://..., file.mp4 -> anything cv2.VideoCapture can open
+  source: sim_render
+  capture: {width: 1280, height: 720, fps: 30}
+  # Image -> CELL-plane calibration (homography). Made with tools/calibrate_camera.py.
+  # Empty = automatic when source is sim_render. REQUIRED for a real camera.
+  calibration_file: ""
+  vision:
+    detect_px_per_mm: 2.0       # resolution of the rectified belt image for detections
+    inspect_px_per_mm: 4.0      # finer resolution for the final inspection in the ROI
+    min_saturation: 0.30        # foreground = saturated pixels ...
+    belt_value_delta: 0.18      # ... or pixels much brighter/darker than the belt
+    min_area_mm2: 300.0         # blobs smaller than this are ignored (dirt, noise)
+    max_area_mm2: 4500.0        # bigger blobs = touching pieces -> ignored
+    square_fill_min: 0.88       # area / min-area-rectangle area: square ~1.0, circle ~0.785
+    circle_fill_range: [0.70, 0.86]
+    edge_margin_mm: 3.0         # ignore this border of the piece for colour / marks
+    # Systematic size error of the camera, added to every measurement (mm).
+    # Calibrate: inspect a reference piece of known size, correction = true - measured.
+    # These values are the ones of the synthetic camera (sim_render).
+    size_correction_mm: {CIRCLE: -0.3, SQUARE: -0.55}
+    mark_color_distance: 40.0   # Lab distance from the piece colour to call a pixel "mark"
+    mark_min_area_mm2: 3.0      # smallest mark (connected pixels) that counts as a defect
+    inspect_frames: 3           # frames averaged in the final inspection
+    motion_threshold: 0.3       # mean change of the belt brightness profile -> belt moving (tune on the real belt)
+    debug_image_rate_hz: 5.0    # /camera/debug_image (JPEG) for the dashboard
+  # Synthetic camera used by source = sim_render
+  render:
+    image_size: [1280, 720]
+    # Where the 4 belt corners appear in the image (px): slight perspective on purpose
+    belt_corners_px: [[70, 448], [1212, 462], [1196, 300], [86, 284]]   # (0,-60) (900,-60) (900,60) (0,60)
+    noise_std: 3.0
+    blur_px: 1
+    light_gradient: 0.15
+  # Extrinsics: position of the ROBOT BASE expressed in the CELL frame.
+  # The camera converts the pick pose from CELL frame -> ROBOT BASE frame.
+  # (In the real cell this comes from hand-eye / camera-robot calibration.)
+  # z = height of the robot base plane in the CELL frame (belt surface = 0):
+  #     touch the belt with the cup tip, read Z on the pendant -> z = -Z_pendant
+  robot_base_in_cell: {x: 780.0, y: 250.0, z: 0.0, yaw_deg: 0.0}
+
+pieces:
+  thickness_mm: 6.0
+  nominal_size_mm: 42.0     # Square side / circle diameter
+  size_tolerance_mm: 2.0    # Accepted: 42 +/- 2 mm
+
+classification:
+  # Hue windows (degrees, 0..360) for the ACCEPTED colours. Anything else is UNKNOWN.
+  colors:
+    RED:   {hue_ranges: [[0, 15], [345, 360]]}
+    GREEN: {hue_ranges: [[90, 150]]}
+    BLUE:  {hue_ranges: [[200, 255]]}
+  min_saturation: 0.45
+  min_value: 0.30
+  # When a piece has more than one defect, the FIRST one in this list decides the bin.
+  defect_priority: [MARKED, WRONG_COLOR, WRONG_SIZE]
+
+bins:
+  # 9 bins. Positions are the bin centre in the CELL frame.
+  size_mm: 85.0
+  drop_z_mm: 60.0           # TCP height when releasing, CELL frame (mm above the belt surface)
+  list:
+    - {id: BIN_RED_CIRCLE,    label: "Red circle",    x: 680.0, y: 440.0, kind: good, shape: CIRCLE, color: RED}
+    - {id: BIN_GREEN_CIRCLE,  label: "Green circle",  x: 780.0, y: 440.0, kind: good, shape: CIRCLE, color: GREEN}
+    - {id: BIN_BLUE_CIRCLE,   label: "Blue circle",   x: 880.0, y: 440.0, kind: good, shape: CIRCLE, color: BLUE}
+    - {id: BIN_RED_SQUARE,    label: "Red square",    x: 680.0, y: 540.0, kind: good, shape: SQUARE, color: RED}
+    - {id: BIN_GREEN_SQUARE,  label: "Green square",  x: 780.0, y: 540.0, kind: good, shape: SQUARE, color: GREEN}
+    - {id: BIN_BLUE_SQUARE,   label: "Blue square",   x: 880.0, y: 540.0, kind: good, shape: SQUARE, color: BLUE}
+    - {id: BIN_REJECT_SIZE,   label: "Reject: size",  x: 680.0, y: 640.0, kind: reject, defect: WRONG_SIZE}
+    - {id: BIN_REJECT_COLOR,  label: "Reject: color", x: 780.0, y: 640.0, kind: reject, defect: WRONG_COLOR}
+    - {id: BIN_REJECT_MARKED, label: "Reject: mark",  x: 880.0, y: 640.0, kind: reject, defect: MARKED}
+
+robot:
+  model: "Universal Robots UR7e"   # 6 axes, 7.5 kg payload
+  end_effector: "vacuum"    # suction cup driven by a digital output
+  home_tcp: {x: 0.0, y: -120.0, z: 220.0}   # ROBOT BASE frame (UR 'Base' feature), mm
+  max_reach_mm: 850.0       # UR7e reach = 850 mm
+  tcp_speed_mm_s: 300.0     # (real robot: keep it low while testing, e.g. 100)
+  tcp_acc_mm_s2: 1000.0
+  approach_height_mm: 100.0 # Height above pick/place points for approach/retreat
+  vacuum_on_time_s: 0.5     # Wait after vacuum ON before lifting (build up suction)
+  vacuum_off_time_s: 0.4    # Wait after vacuum OFF so the piece falls
+  pick_press_mm: 1.0        # Go this much lower than the piece top to seal the cup
+  status_rate_hz: 20.0
+  # ---- real driver only (ur7e_robot_node, uses the ur_rtde library) ----
+  ur_ip: "192.168.1.102"    # IP of the UR controller (teach pendant: Settings > Network)
+  # Tool orientation as a UR rotation vector [rx, ry, rz] (rad) in the UR BASE frame.
+  # [3.1416, 0, 0] = suction cup pointing straight down. Check it on the pendant!
+  tool_rotvec: [3.1416, 0.0, 0.0]
+  # Digital output that switches the vacuum: type "standard" (controller box DO0-7),
+  # "configurable" (CO0-7) or "tool" (tool flange TO0-1).
+  vacuum_output: {type: "standard", pin: 0}
+  vacuum_active_high: true
+
+supervisor:
+  eval_rate_hz: 10.0        # Rules are evaluated on EVERY status AND at this rate (timeouts)
+  sensor_timeout_s: 1.0     # No IR message for this long -> treat as unsafe -> STOP belt
+  inspection_timeout_s: 3.0
+  inspection_max_retries: 3
+  command_resend_s: 1.0     # Re-send a command if the device did not reach the requested state
+
+dashboard:
+  port: 8080
