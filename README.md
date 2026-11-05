@@ -82,12 +82,14 @@ quality_inspection_cell/
 │   ├── 11_design_decisions.md
 │   ├── 12_ros2_cheatsheet.md
 │   ├── 13_hardware_arduino_ur7e.md   ← wiring, Arduino protocol, UR7e setup, bring-up
-│   └── 14_camera_vision.md           ← OpenCV pipeline, camera setup, calibration, tuning
+│   ├── 14_camera_vision.md           ← OpenCV pipeline, camera setup, calibration, tuning
+│   └── 15_physical_build_guide.md    ← BUILD THE REAL CELL: parts, layout, wiring, config, checklist
 ├── arduino/cell_io/cell_io.ino      ← Arduino firmware (conveyor motor + IR sensor)
 ├── tools/
 │   ├── fake_arduino.py              ← virtual Arduino to test the bridge without hardware
 │   ├── calibrate_robot_base.py      ← UR base ↔ cell frame calibration
-│   └── calibrate_camera.py          ← camera image ↔ belt (mm) calibration
+│   ├── calibrate_camera.py          ← camera image ↔ belt (mm) calibration
+│   └── make_build_figures.py        ← layout + wiring figures from cell_config.yaml
 └── ros2_ws/src/
     ├── cell_interfaces/     ← custom messages (the "contract" between nodes)
     │   └── msg/*.msg
@@ -130,3 +132,7 @@ quality_inspection_cell/
 | `cell_dashboard` | Web UI, operator, monitor | `/sim/spawn_piece`, `/sim/reset` | everything (read only) |
 
 Start reading with [docs/01_system_overview.md](docs/01_system_overview.md).
+
+**Building the real cell?** Follow [docs/15_physical_build_guide.md](docs/15_physical_build_guide.md):
+bill of materials, layout with dimensions, wiring, measuring the cell, calibration and a
+step-by-step commissioning checklist.

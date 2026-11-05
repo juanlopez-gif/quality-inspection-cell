@@ -1,6 +1,8 @@
 # 13. Real hardware: Arduino (conveyor + IR) and UR7e with vacuum
 
-This chapter describes the hardware of **our** cell:
+This chapter describes the hardware of **our** cell. For the complete build procedure (parts,
+layout, wiring diagram, config, commissioning checklist) see
+[15_physical_build_guide.md](15_physical_build_guide.md).
 
 | Part | Hardware | ROS 2 node (real) | Replaces (sim) |
 |---|---|---|---|

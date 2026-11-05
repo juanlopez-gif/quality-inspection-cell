@@ -13,7 +13,8 @@ messages. `world_sim` disappears. Use `launch/cell_real.launch.py` as a template
 | `world_sim_node` | — (removed) | — |
 
 All the details (wiring, protocol, pendant setup, calibration, bring-up order) are in
-[13_hardware_arduino_ur7e.md](13_hardware_arduino_ur7e.md).
+[13_hardware_arduino_ur7e.md](13_hardware_arduino_ur7e.md). The complete build procedure,
+from parts list to commissioning checklist, is [15_physical_build_guide.md](15_physical_build_guide.md).
 
 ## 8.1 Checklist
 
