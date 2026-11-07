@@ -40,14 +40,9 @@
       <div class="panel-title">Top view of the cell <span class="hint">CELL frame · mm · belt moves → +X</span></div>
       <div class="canvas-wrap"><canvas id="cell-canvas"></canvas></div>
       <div class="robot-strip" id="robot-strip"></div>
-      <div class="cam-box" id="cam-box">
-        <div class="panel-title">What the camera sees <span class="hint">/camera/debug_image · OpenCV pipeline: contours, class, size, pick ROI</span></div>
-        <img id="cam-img" alt="camera image">
-        <div class="hint" id="cam-note"></div>
-      </div>
     </div>
 
-    <div class="side">
+    <div class="col col-ops">
       <div class="panel">
         <div class="panel-title">Operator · place a piece on the belt</div>
         <div class="form">
@@ -91,6 +86,9 @@
         </div>
       </div>
 
+    </div>
+
+    <div class="col col-status">
       <div class="panel">
         <div class="panel-title">Device status (from /…/status topics)</div>
         <div class="cards" id="cards"></div>
@@ -100,11 +98,17 @@
         <div class="panel-title">Last final inspection <span class="hint">/camera/inspection_result</span></div>
         <div id="last-insp" class="insp empty">No inspection yet.</div>
       </div>
+      <div class="panel events-panel">
+        <div class="panel-title">Latest events <span class="hint">status → rule → command</span></div>
+        <div id="mini-log" class="log mini"></div>
+      </div>
     </div>
-  </div>
-  <div class="panel">
-    <div class="panel-title">Latest events <span class="hint">status → rule → command</span></div>
-    <div id="mini-log" class="log mini"></div>
+
+    <div class="panel cam-box" id="cam-box">
+      <div class="panel-title">What the camera sees <span class="hint">/camera/debug_image · OpenCV pipeline: contours, class, size, pick ROI</span></div>
+      <img id="cam-img" alt="camera image">
+      <div class="hint" id="cam-note"></div>
+    </div>
   </div>
 </section>
 

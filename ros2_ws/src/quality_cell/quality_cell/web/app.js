@@ -117,13 +117,24 @@ const cv = $('cell-canvas'); const ctx = cv.getContext('2d');
 const VIEW = { xmin: -60, xmax: 1010, ymin: -130, ymax: 730 };
 let scale = 1;
 function resizeCanvas() {
-  const w = cv.parentElement.clientWidth; if (!w) return;
-  const h = w * (VIEW.ymax - VIEW.ymin) / (VIEW.xmax - VIEW.xmin);
+  // Width-limited on narrow screens; on wide screens (fit-to-screen layout in
+  // style.css) the canvas is also limited by the free height, keeping its aspect.
+  const wrap = cv.parentElement;
+  const aspect = (VIEW.ymax - VIEW.ymin) / (VIEW.xmax - VIEW.xmin);
+  let w = wrap.clientWidth; if (!w) return;
+  let h = w * aspect;
+  const freeH = wrap.clientHeight;
+  if (FIT.matches && freeH > 50 && h > freeH) { h = freeH; w = h / aspect; }
+  w = Math.floor(w); h = Math.floor(h);
   const dpr = window.devicePixelRatio || 1;
-  cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
+  cv.width = w * dpr; cv.height = h * dpr; cv.style.width = w + 'px'; cv.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   scale = w / (VIEW.xmax - VIEW.xmin);
 }
+const FIT = window.matchMedia('(min-width: 1100px) and (min-height: 560px)');
+// The wrapper changes size with the window AND with the layout (fonts, camera
+// image loading...), so watch the wrapper itself, not only the window.
+if (window.ResizeObserver) new ResizeObserver(() => resizeCanvas()).observe(cv.parentElement);
 window.addEventListener('resize', () => { resizeCanvas(); drawArch(true); });
 const px = (x) => (x - VIEW.xmin) * scale;
 const py = (y) => (VIEW.ymax - y) * scale;
